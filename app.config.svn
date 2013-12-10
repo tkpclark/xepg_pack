@@ -1,0 +1,22 @@
+#config file
+db_ip="192.168.223.171"
+
+db_port="9999"
+
+db_user="xepg"
+
+db_psw="xepg"
+
+db_name="xepg"
+
+server_dir="."
+
+server_ip="192.168.223.140"
+
+server_port="9999"
+
+logfile="../log/sys.log"
+
+updaterlogfile="../log/updater.log"
+
+pic_dir="/home/app/tomcat/webapps/xepg"

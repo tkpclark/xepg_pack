@@ -1,0 +1,4 @@
+inquiry cltid
+select t1.pid,t2.table_id,t1.id,t2.id,extend,t3.`name` from xepg_pid t1 right JOIN xepg_tableid t2 on t1.baseid=t2.baseid right join xepg_base t3 on t1.baseid=t3.id
+
+"actual or other is for stream ,not for sub id"
