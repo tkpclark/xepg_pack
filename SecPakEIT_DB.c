@@ -24,7 +24,7 @@ unsigned int printlevel = 0;
 TASK_INFO task_info;
 //static unsigned short glb_event_id=0;
 
-static char CreateEIS_PF(unsigned char table_id,unsigned char section_number,SEC_BUFFER_INFO *p,unsigned short stream_id,char *serviceID,unsigned short service_id,unsigned char version_number)
+static char CreateEIS_PF(unsigned char table_id,unsigned char section_number,SEC_BUFFER_INFO *p,unsigned short stream_id,char *serviceID,unsigned short service_id,unsigned char version_number,int ref_service)
 {
 	//printf("	---section_number:%d正在打包......\n",section_number);
 	p->buffer=malloc(MAX_EIT_SECTION_LEN);
@@ -99,18 +99,25 @@ static char CreateEIS_PF(unsigned char table_id,unsigned char section_number,SEC
 	offs++;
 
 
-	//get event info
-	if(section_number==0)//actual
+	if(ref_service)//it's a ref service
 	{
-		sprintf(sql,"select id,start_time-interval 8 hour,duration,running_status,free_CA_mode,event_id from xepg_eit_extension where service_id=%s and  NOW() >=  start_time and NOW() < start_time + interval HOUR(duration ) HOUR + interval MINUTE(duration ) MINUTE + interval SECOND(duration ) SECOND ",serviceID);
+		sprintf(sql,"select id,start_time-interval 8 hour,duration,running_status,free_CA_mode,event_id from xepg_eit_extension where service_id=%s ",serviceID);
 	}
-	else if(section_number==1)
+	else// normal service
 	{
-		sprintf(sql,"select id,start_time-interval 8 hour,duration,running_status,free_CA_mode,event_id from xepg_eit_extension where service_id=%s and start_time > NOW() order by start_time limit 1",serviceID);
-	}
-	else
-	{
-		printf("section_number error:%d\n",section_number);
+		//get event info
+		if(section_number==0)//actual
+		{
+			sprintf(sql,"select id,start_time-interval 8 hour,duration,running_status,free_CA_mode,event_id from xepg_eit_extension where service_id=%s and  NOW() >=  start_time and NOW() < start_time + interval HOUR(duration ) HOUR + interval MINUTE(duration ) MINUTE + interval SECOND(duration ) SECOND ",serviceID);
+		}
+		else if(section_number==1)
+		{
+			sprintf(sql,"select id,start_time-interval 8 hour,duration,running_status,free_CA_mode,event_id from xepg_eit_extension where service_id=%s and start_time > NOW() order by start_time limit 1",serviceID);
+		}
+		else
+		{
+			printf("section_number error:%d\n",section_number);
+		}
 	}
 	num=mysql_get_data(&mysql, sql,data);
 	
@@ -119,7 +126,7 @@ static char CreateEIS_PF(unsigned char table_id,unsigned char section_number,SEC
 	unsigned short event_id;
 	//for(i=0;i<1;i++)//only 1 is curring event
 	
-	if(num)
+	for(i=0;i<num;i++)
 	{
 
 		if(section_number==0)//only p do update
@@ -129,8 +136,6 @@ static char CreateEIS_PF(unsigned char table_id,unsigned char section_number,SEC
 			mysql_exec(&mysql, sql);
 		}
 
-				
-		i=0;
 		//event_id
 		event_id=(unsigned short)(atoi(data[i][5]));
 		//event_id=atoi(data[i][0]);
@@ -450,6 +455,7 @@ static int CreateOneTable_EITPF(unsigned char table_id,SEC_BUFFER_INFO *p_sbi,ch
 	num=mysql_get_data(&mysql, sql,data_service);
 	printf("@@@共有table_extension(service)%d个\n",num);
 	
+	int ref_service=-1;//whether this service is a ref service
 	for(i=0;i<num;i++)
 	{
 		//get streamid of this service
@@ -459,13 +465,31 @@ static int CreateOneTable_EITPF(unsigned char table_id,SEC_BUFFER_INFO *p_sbi,ch
 		
 		service_stream_id=atoi(data[0][0]);
 		
+		if(is_ref_service(data_service[i][0]))
+		{
+			ref_service=1;
+			printf("this is a ref service!\n");
+		}
+		else
+		{
+			ref_service=0;
+			printf("this is a normal service!\n");
+		}
+
+
 		//curruct event
-		CreateEIS_PF(table_id,0,&p_sbi[section_number+base],service_stream_id,data_service[i][0],(unsigned short)(atoi(data_service[i][1])),task_info.version_number);
-		section_number++;
+		if(1)
+		{
+			CreateEIS_PF(table_id,0,&p_sbi[section_number+base],service_stream_id,data_service[i][0],(unsigned short)(atoi(data_service[i][1])),task_info.version_number,ref_service);
+			section_number++;
+		}
 
 		//following event
-		CreateEIS_PF(table_id,1,&p_sbi[section_number+base],service_stream_id,data_service[i][0],(unsigned short)(atoi(data_service[i][1])),task_info.version_number);
-		section_number++;
+		if(ref_service==0)//only normal service has section_number 1 (following)
+		{
+			CreateEIS_PF(table_id,1,&p_sbi[section_number+base],service_stream_id,data_service[i][0],(unsigned short)(atoi(data_service[i][1])),task_info.version_number,ref_service);
+			section_number++;
+		}
 		/*
 		sprintf(logbuf,"ver[%d]ts[%s]tb[0x%x]sv[%s]sec[2]",version_number,stream_id,table_id,data_service[i][1]);
 		proclog(logfd, mdname, logbuf);
@@ -533,6 +557,10 @@ static int CreateTables_EITSC(unsigned char table_id,SEC_BUFFER_INFO *p_sbi,char
 
 		printf("@@@service:%s\n",data_service[i][1]);
 		
+		//if it's a ref service ,then skip
+		if(is_ref_service(data_service[i][0]))
+			continue;
+
 		//get streamid of this service
 		
 		sprintf(sql,"select id,transport_stream_id from xepg_nit_extension t where t.id in (select transport_stream_id from xepg_sdt_extension where id=%s)",data_service[i][0]);

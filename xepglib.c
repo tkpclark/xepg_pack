@@ -1347,3 +1347,26 @@ trunc_big_file(int fd,unsigned int size)
 		}
 	}
 }
+
+int is_ref_service(char *serviceID)
+{
+	char data_tmp[3][DATA_MAX_FIELD_NUM][DATA_MAX_REC_LEN];
+	char sql[256];
+	sprintf(sql,"select t.attributevalue from xepg_descriptor_relation t where t.foreigntype=2 and t.attributeid=13 and t.foreignid='%s'  limit 1",serviceID);
+	int num=mysql_get_data(&mysql, sql,data_tmp);
+	if(!num)
+	{
+		printf("@@@主键为%s的service不存在!\n",serviceID);
+		return 0;
+	}
+
+	//if result is 04,means this is a ref service
+	if(!strcmp(data_tmp[0][0],"04"))
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}

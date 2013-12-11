@@ -30,7 +30,9 @@ void mysql_exec(MYSQL *mysql,char *buf)
 	if (mysql_query(mysql,buf))
 	{
 		myerr=mysql_errno(mysql);
-		if(myerr==CR_SERVER_GONE_ERROR || myerr==CR_SERVER_LOST)
+		//if(myerr==CR_SERVER_GONE_ERROR || myerr==CR_SERVER_LOST)
+		//if(myerr==CR_SERVER_GONE_ERROR )
+		if(myerr==CR_SERVER_LOST)
 		{	/*
 			sprintf(logbuf,"redo SQL %d time",i);
 			proclog(logfd,mdname,logbuf);

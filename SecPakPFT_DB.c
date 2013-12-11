@@ -430,7 +430,7 @@ static CreateOneTable_PFT(SEC_BUFFER_INFO *p_sbi)
 				pic_info.tipline3_len
 				);
 
-	//proclog(logfd,mdname,logbuf);
+	proclog(logfd,mdname,logbuf);
 	printf("@@@%s\n",logbuf);
 	//creating sections of this sub table
 
